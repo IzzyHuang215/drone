@@ -25,7 +25,13 @@ submit() {  # submit NAME TASKS ROBUSTNESS STEPS SEED DEPENDENCY TRAIN_ARGS -> p
   if [[ -f runs/suite/$name/final-real-first_principles.json ]]; then
     return 0
   fi
-  local opts=(--parsable -J "suite-${name//\//-}")
+  local job_name=suite-${name//\//-} queued
+  queued=$(squeue -u "$USER" -h -n "$job_name" -o %i | head -1)
+  if [[ -n $queued ]]; then  # already queued or running: reuse it as the dependency
+    echo "$queued"
+    return 0
+  fi
+  local opts=(--parsable -J "$job_name")
   [[ -n $dep ]] && opts+=(--dependency="afterok:$dep")
   NAME=$name TASKS=$tasks ROBUSTNESS=$rob STEPS=$steps SEED=$seed TRAIN_ARGS=$args \
     sbatch "${opts[@]}" slurm/suite-train.sbatch 2>/dev/null | tail -1

@@ -14,9 +14,11 @@ mkdir -p "$OUT"
 for baseline in pid zero; do
   for rob in none real; do
     for dyn in so_rpy first_principles; do
+      out=$OUT/$baseline-$rob-$dyn.json
+      [[ -f $out ]] && continue
       uv run --locked --extra gpu python -m hover.suite evaluate --baseline "$baseline" \
         --tasks all --robustness "$rob" --dynamics "$dyn" --episodes "${EPISODES:-100}" \
-        --output "$OUT/$baseline-$rob-$dyn.json" > /dev/null
+        --output "$out" > /dev/null
     done
   done
 done

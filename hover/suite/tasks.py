@@ -198,6 +198,8 @@ class Robustness:
     gust: float = 0.0  # fraction of weight, gust std
     drag: float = 0.0  # N per (m/s), max linear drag
     latency_steps: int = 0  # max action delay in 10 ms policy steps
+    attitude_lag: float = 0.0  # s, max time constant of a first-order lag on attitude targets
+    attitude_gain: float = 0.0  # +-fraction: achieved vs commanded attitude
     pos_noise: float = 0.0  # m, std
     vel_noise: float = 0.0  # m/s, std
     attitude_noise: float = 0.0  # quaternion component std
@@ -216,6 +218,10 @@ ROBUSTNESS = {
         gust=0.03,
         drag=0.02,
         latency_steps=3,
+        # The attitude loop of the real drone is the least certain part of the model: the
+        # second simulator model responds ~30 ms slower, so cover about twice that.
+        attitude_lag=0.06,
+        attitude_gain=0.15,
         pos_noise=0.01,
         vel_noise=0.05,
         attitude_noise=0.01,

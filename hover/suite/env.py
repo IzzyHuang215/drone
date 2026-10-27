@@ -310,6 +310,7 @@ class SuiteVecEnv(VecEnv):
                 "thrust_scale": 1.0 + box(rob.thrust_scale, (n,)),
                 "att_bias": box(rob.attitude_bias) * jnp.array([1.0, 1.0, 0.0]),
                 "latency": jax.random.randint(next(keys), (n,), 0, lat + 1),
+                "att_filter": jnp.zeros((n, 3)),
                 "gust": jnp.zeros((n, 3)),
                 "buf": jnp.zeros((n, lat + 1, 4)),
                 "prev_action": jnp.zeros((n, 4)),
@@ -336,6 +337,10 @@ class SuiteVecEnv(VecEnv):
             )
             q_yaw = jnp.stack([jnp.zeros(n), jnp.zeros(n), jnp.sin(yaw / 2), jnp.cos(yaw / 2)], -1)
             start["quat"] = quat_multiply(q_yaw, q_tilt)
+            # Drawn last so that adding them left every earlier draw (and so every evaluation
+            # episode's start) unchanged.
+            new["att_tau"] = uniform(next(keys), (n,)) * rob.attitude_lag
+            new["att_gain"] = 1.0 + box(rob.attitude_gain, (n,))
             if ep is None:
                 return new, start
             pick = lambda a, b: jnp.where(mask.reshape((n,) + (1,) * (a.ndim - 1)), a, b)  # noqa: E731
@@ -390,7 +395,14 @@ class SuiteVecEnv(VecEnv):
             buf = jnp.concatenate([actions[:, None], ep["buf"][:, :-1]], 1)
             applied = buf[jnp.arange(n), ep["latency"]]
             cmd = action_to_command(applied, c["thrust_min"], c["thrust_max"], c["hover_thrust"])
-            cmd = cmd.at[:, :3].add(ep["att_bias"]).at[:, 3].multiply(ep["thrust_scale"])
+            # Attitude-response uncertainty: gain error and a first-order lag on the targets.
+            alpha = DT / (ep["att_tau"] + DT)
+            att = ep["att_filter"] + alpha[:, None] * (
+                cmd[:, :3] * ep["att_gain"][:, None] - ep["att_filter"]
+            )
+            cmd = jnp.concatenate(
+                [att + ep["att_bias"], cmd[:, 3:] * ep["thrust_scale"][:, None]], 1
+            )
             pos_before = data.states.pos[:, 0]
             data = F.attitude_control(data, cmd[:, None])
             decay = DT / GUST_TIME_CONSTANT
@@ -410,7 +422,7 @@ class SuiteVecEnv(VecEnv):
             s = data.states
             pos, vel, quat = s.pos[:, 0], s.vel[:, 0], s.quat[:, 0]
             t = ep["t"] + 1
-            ep = {**ep, "t": t, "gust": gust, "buf": buf}
+            ep = {**ep, "t": t, "gust": gust, "buf": buf, "att_filter": att}
             ref_pos, ref_vel = reference(ep, t * DT)
             is_wp = ep["ref"] == T.WAYPOINTS
             en_route = is_wp & (ep["wp_idx"] < ep["n_wp"])

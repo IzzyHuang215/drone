@@ -35,9 +35,11 @@ else
 fi
 for rob in none real; do
   for dyn in so_rpy first_principles; do
+    out=$RUN/final-$rob-$dyn.json
+    [[ -f $out ]] && continue
     # shellcheck disable=SC2086
     suite evaluate --checkpoint "$RUN/policy.zip" --tasks $TASKS --robustness "$rob" \
-      --dynamics "$dyn" --episodes "$EPISODES" --output "$RUN/final-$rob-$dyn.json" > /dev/null
+      --dynamics "$dyn" --episodes "$EPISODES" --output "$out" > /dev/null
   done
 done
 echo "done: $RUN"
