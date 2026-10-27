@@ -17,3 +17,5 @@ uv run python -m hover evaluate --checkpoint runs/hover-smoke/policy.zip
 
 The short validation runs exercised the pipeline but did **not** converge to stable hover.
 See [measured results and limitations](docs/hover-validation.md).
+
+For cluster setup, give the next agent [the NVIDIA HPC handoff](docs/hpc-handoff.md).
