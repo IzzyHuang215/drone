@@ -391,6 +391,7 @@ class SuiteVecEnv(VecEnv):
             applied = buf[jnp.arange(n), ep["latency"]]
             cmd = action_to_command(applied, c["thrust_min"], c["thrust_max"], c["hover_thrust"])
             cmd = cmd.at[:, :3].add(ep["att_bias"]).at[:, 3].multiply(ep["thrust_scale"])
+            pos_before = data.states.pos[:, 0]
             data = F.attitude_control(data, cmd[:, None])
             decay = DT / GUST_TIME_CONSTANT
             gust = ep["gust"] * (1 - decay) + ep["gust_std"][:, None] * jnp.sqrt(
@@ -412,11 +413,12 @@ class SuiteVecEnv(VecEnv):
             ep = {**ep, "t": t, "gust": gust, "buf": buf}
             ref_pos, ref_vel = reference(ep, t * DT)
             is_wp = ep["ref"] == T.WAYPOINTS
-            reached = (
-                is_wp
-                & (ep["wp_idx"] < ep["n_wp"])
-                & (jnp.linalg.norm(pos - ref_pos, axis=-1) < ep["wp_radius"])
+            en_route = is_wp & (ep["wp_idx"] < ep["n_wp"])
+            # Distance closed toward the current waypoint this step (potential-based shaping).
+            progress = jnp.linalg.norm(pos_before - ref_pos, axis=-1) - jnp.linalg.norm(
+                pos - ref_pos, axis=-1
             )
+            reached = en_route & (jnp.linalg.norm(pos - ref_pos, axis=-1) < ep["wp_radius"])
             ep["wp_idx"] = ep["wp_idx"] + reached
             ref_pos, ref_vel = reference(ep, t * DT)
             err = jnp.linalg.norm(pos - ref_pos, axis=-1)
@@ -438,10 +440,18 @@ class SuiteVecEnv(VecEnv):
             truncated = t >= ep["horizon"]
             # Landing has no per-step survival reward, so touching down beats hovering.
             alive = jnp.where(is_landing, 0.0, 1.0)
-            reward = (
-                alive * (1.0 + 0.5 * jnp.exp(-((err / 0.1) ** 2)))
+            # While waypoints remain, reward progress instead of closeness: closeness would make
+            # capturing a waypoint (which switches to a distant target) look like a loss.
+            tracking = jnp.where(
+                en_route,
+                20.0 * progress,
+                alive * 0.5 * jnp.exp(-((err / 0.1) ** 2))
                 - 0.5 * jnp.tanh(err)
-                - 0.05 * jnp.minimum(err_vel, 10.0)
+                - 0.05 * jnp.minimum(err_vel, 10.0),
+            )
+            reward = (
+                alive
+                + tracking
                 - 0.01 * jnp.sum(actions**2, -1)
                 - 0.05 * jnp.sum((actions - ep["prev_action"]) ** 2, -1)
                 - 0.1 * (1 - up)
