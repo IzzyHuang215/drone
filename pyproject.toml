@@ -5,6 +5,11 @@ description = "Crazyflow hover policy experiments"
 requires-python = ">=3.12,<3.13"
 dependencies = ["crazyflow==0.4.0", "stable-baselines3==2.9.2"]
 
+[project.optional-dependencies]
+# NVIDIA JAX backend for Linux x86-64. CUDA 13 matches the CUDA runtime wheels that the
+# locked Linux PyTorch build already uses, so JAX and PyTorch share one set of libraries.
+gpu = ["jax[cuda13]==0.12.0.1; sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
 [dependency-groups]
 dev = ["pytest>=8,<9", "ruff>=0.14,<0.15"]
 
