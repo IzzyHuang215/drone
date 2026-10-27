@@ -194,3 +194,20 @@ def test_cli_trains_resumes_and_evaluates(tmp_path, robustness):
     )
     assert report["tasks"]["hover"]["episodes"] == 2
     assert "recover" in run_suite("list").stdout
+
+
+def test_mixed_training_env_steps_both_models():
+    from hover.suite.env import MixedVecEnv, training_env
+
+    env = training_env([T.TASKS["hover"]], 6, dynamics="mix")
+    try:
+        assert isinstance(env, MixedVecEnv) and env.num_envs == 6
+        assert [e.dynamics for e in env.envs] == ["so_rpy", "first_principles"]
+        env.seed(4)
+        first = env.reset()
+        env.seed(4)
+        np.testing.assert_array_equal(first, env.reset())
+        obs, rewards, dones, infos = env.step(PID.predict(first)[0])
+        assert obs.shape == (6, OBS_DIM) and len(infos) == 6 and np.isfinite(rewards).all()
+    finally:
+        env.close()
