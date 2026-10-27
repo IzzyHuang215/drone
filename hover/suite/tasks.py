@@ -12,7 +12,7 @@ from dataclasses import dataclass, fields
 import numpy as np
 
 # Reference motion types. All references are anchored at ORIGIN except landing (ground pad).
-HOLD, POINT, CIRCLE, FIGURE8, LANDING, WAYPOINTS = range(6)
+HOLD, POINT, CIRCLE, FIGURE8, LANDING, WAYPOINTS, PATH = range(7)
 REFERENCES = {
     "hold": HOLD,
     "point": POINT,
@@ -20,12 +20,20 @@ REFERENCES = {
     "figure8": FIGURE8,
     "landing": LANDING,
     "waypoints": WAYPOINTS,
+    "path": PATH,
 }
 ORIGIN = np.array([0.0, 0.0, 1.0], np.float32)
 MAX_WAYPOINTS = 4
 LOOKAHEAD_SECONDS = 0.5
 # Trajectories ramp their speed up over this time so they can start from hover.
 RAMP_SECONDS = 1.0
+# "path": the planar sine-series path of the ese6180-generative-flows planning study,
+#   p(s) = start + s (goal - start) + sum_j sin(j pi s) c_j,  s = t / T,
+# flown at ORIGIN's altitude (path coordinates are metres, centred on ORIGIN) and then held
+# at the goal. Like that study, episodes start on the reference with its velocity.
+PATH_MODES = 4
+PATH_START = (-2.0, 0.0)
+PATH_GOAL = (2.0, 0.0)
 # Landing references slow to FLARE_SPEED for the last FLARE_HEIGHT metres.
 FLARE_HEIGHT = 0.25
 FLARE_SPEED = 0.15
@@ -63,6 +71,13 @@ class TaskSpec:
     waypoint_xy: float = 1.0
     waypoint_z: float = 0.4
     waypoint_radius: float = 0.15
+    # "path": coefficients of the training prior (c_1y uniform within +-path_c1, every other
+    # component normal with std path_std / j for mode j), duration, and a random rotation.
+    path_c1: float = 0.0
+    path_std: float = 0.0
+    path_T_min: float = 6.0
+    path_T_max: float = 6.0
+    path_rotate: float = 0.0
     # Task disturbances, as fractions of the drone's weight: Ornstein-Uhlenbeck gusts
     # (std) and a constant per-episode wind (max); pushes are random velocity kicks.
     gust: float = 0.0
@@ -182,6 +197,23 @@ TASKS = {
             episode_seconds=12.0,
             start_pos=0.1,
             max_error=3.0,
+        ),
+        TaskSpec(
+            "path",
+            10,
+            "Track a random smooth 4 m path (the flow planner's path family), any heading, 5-8 s.",
+            "path",
+            episode_seconds=9.0,
+            start_pos=0.05,
+            start_vel=0.1,
+            path_c1=2.5,
+            path_std=0.9,
+            path_T_min=5.0,
+            path_T_max=8.0,
+            path_rotate=1.0,
+            max_error=3.0,
+            success_error=0.15,
+            success_metric="tracking",
         ),
     ]
 }

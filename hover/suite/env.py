@@ -180,6 +180,32 @@ def reference(ep, t):
     height, sink = height[:, None], sink[:, None]
     landing = anchor + jnp.concatenate([jnp.zeros_like(height)] * 2 + [height], -1)
     landing_v = jnp.concatenate([jnp.zeros_like(height)] * 2 + [-sink], -1)
+    # Planar sine-series path, rotated about the vertical through ORIGIN.
+    tau = ep["path_T"]
+    sp = jnp.clip(t / tau, 0.0, 1.0)[:, None]
+    j = jnp.arange(1, T.PATH_MODES + 1, dtype=jnp.float32)
+    chord = jnp.asarray(T.PATH_GOAL, jnp.float32) - jnp.asarray(T.PATH_START, jnp.float32)
+    planar = (
+        jnp.asarray(T.PATH_START, jnp.float32)
+        + sp * chord
+        + jnp.einsum("nj,njk->nk", jnp.sin(jnp.pi * sp * j), ep["path_c"])
+    )
+    moving = (t < tau)[:, None]
+    planar_v = jnp.where(
+        moving,
+        (chord + jnp.einsum("nj,njk->nk", j * jnp.pi * jnp.cos(jnp.pi * sp * j), ep["path_c"]))
+        / tau[:, None],
+        0.0,
+    )
+    cos, sin = jnp.cos(ep["path_rot"])[:, None], jnp.sin(ep["path_rot"])[:, None]
+
+    def rotate(xy):
+        return jnp.concatenate(
+            [cos * xy[:, :1] - sin * xy[:, 1:], sin * xy[:, :1] + cos * xy[:, 1:]], -1
+        )
+
+    path = anchor + jnp.concatenate([rotate(planar), jnp.zeros_like(height)], -1)
+    path_v = jnp.concatenate([rotate(planar_v), jnp.zeros_like(height)], -1)
     n = ep["n_wp"]
     idx = jnp.minimum(ep["wp_idx"], n - 1)
     wps = ep["wps"]
@@ -189,6 +215,7 @@ def reference(ep, t):
         (kind == T.FIGURE8, eight, eight_v),
         (kind == T.LANDING, landing, landing_v),
         (kind == T.WAYPOINTS, waypoint, zero),
+        (kind == T.PATH, path, path_v),
     ]
     pos, vel = anchor, zero
     for mask, p, v in choose:
@@ -242,6 +269,7 @@ class SuiteVecEnv(VecEnv):
         self.smoothness = smoothness
         self._fns = self._build(n_worlds, jnp.asarray(table), columns, c, self.robustness)
         self._key = self._ep = None
+        self.set_paths(None)
         self._actions = None
         super().__init__(
             n_worlds,
@@ -258,7 +286,8 @@ class SuiteVecEnv(VecEnv):
         def field(rows, name):
             return rows[:, col[name]]
 
-        def sample_episode(key, mask, ep):
+        def sample_episode(key, mask, ep, override):
+            k_path = jax.random.fold_in(key, 7)  # separate stream: other tasks' draws unchanged
             keys = iter(jax.random.split(key, 24))
             task = jax.random.randint(next(keys), (n,), 0, n_tasks)
             rows = table[task]
@@ -296,6 +325,7 @@ class SuiteVecEnv(VecEnv):
                 "phase": uniform(next(keys), (n,), maxval=2 * jnp.pi),
                 "height": between("height_min", "height_max"),
                 "descent": between("descent_min", "descent_max"),
+                **sample_path(k_path, rows, override),
                 "wps": T.ORIGIN
                 + uniform(next(keys), (n, k_wp, 3), minval=-1.0, maxval=1.0) * wp_box,
                 "wp_idx": jnp.zeros(n, jnp.int32),
@@ -348,6 +378,26 @@ class SuiteVecEnv(VecEnv):
             pick = lambda a, b: jnp.where(mask.reshape((n,) + (1,) * (a.ndim - 1)), a, b)  # noqa: E731
             return jax.tree.map(pick, new, ep), start
 
+        def sample_path(key, rows, override):
+            k_c1, k_c, k_t, k_r = jax.random.split(key, 4)
+            scale = (
+                field(rows, "path_std")[:, None, None]
+                / jnp.arange(1, T.PATH_MODES + 1)[None, :, None]
+            )
+            coef = jax.random.normal(k_c, (n, T.PATH_MODES, 2)) * scale
+            c1 = (2 * jax.random.uniform(k_c1, (n,)) - 1) * field(rows, "path_c1")
+            coef = coef.at[:, 0, 1].add(c1)
+            tau = field(rows, "path_T_min") + jax.random.uniform(k_t, (n,)) * (
+                field(rows, "path_T_max") - field(rows, "path_T_min")
+            )
+            rot = field(rows, "path_rotate") * jax.random.uniform(k_r, (n,), maxval=2 * jnp.pi)
+            use = override["use"]
+            return {
+                "path_c": jnp.where(use, override["c"], coef),
+                "path_T": jnp.where(use, override["T"], tau),
+                "path_rot": jnp.where(use, override["rot"], rot),
+            }
+
         def apply_start(data, default_data, mask, start):
             data = sim._reset(data, default_data, mask)
             s = data.states
@@ -385,13 +435,13 @@ class SuiteVecEnv(VecEnv):
                 ep["integral"],
             )
 
-        def reset_all(data, default_data, key):
+        def reset_all(data, default_data, key, override):
             key, k_ep, k_obs = jax.random.split(key, 3)
-            ep, start = sample_episode(k_ep, None, None)
+            ep, start = sample_episode(k_ep, None, None, override)
             data = apply_start(data, default_data, jnp.ones(n, bool), start)
             return data, ep, key, observe(data, ep, k_obs)
 
-        def step(data, default_data, ep, key, actions):
+        def step(data, default_data, ep, key, actions, override):
             key, k_gust, k_push, k_dir, k_reset, k_obs, k_final = jax.random.split(key, 7)
             actions = jnp.clip(actions, -1, 1)
             buf = jnp.concatenate([actions[:, None], ep["buf"][:, :-1]], 1)
@@ -487,7 +537,7 @@ class SuiteVecEnv(VecEnv):
                 "altitude": altitude,
             }
             done = terminated | truncated
-            new_ep, start = sample_episode(k_reset, done, ep)
+            new_ep, start = sample_episode(k_reset, done, ep, override)
             data = apply_start(data, default_data, done, start)
             obs = observe(data, new_ep, k_obs)
             return data, new_ep, key, (obs, final_obs, reward, terminated, truncated, info)
@@ -500,7 +550,7 @@ class SuiteVecEnv(VecEnv):
             seed = int(np.random.randint(0, np.iinfo(np.uint32).max, dtype=np.uint32))
         key = jax.device_put(jax.random.key(seed), self.sim.device)
         self.sim.data, self._ep, self._key, obs = self._fns[0](
-            self.sim.data, self.sim.default_data, key
+            self.sim.data, self.sim.default_data, key, self._override
         )
         self._reset_seeds()
         return np.array(obs)
@@ -513,7 +563,7 @@ class SuiteVecEnv(VecEnv):
             np.asarray(actions, np.float32).reshape(self.num_envs, 4), self.sim.device
         )
         self.sim.data, self._ep, self._key, out = self._fns[1](
-            self.sim.data, self.sim.default_data, self._ep, self._key, actions
+            self.sim.data, self.sim.default_data, self._ep, self._key, actions, self._override
         )
         obs, final_obs, reward, terminated, truncated, info = jax.tree.map(
             np.array, jax.device_get(out)
@@ -521,6 +571,24 @@ class SuiteVecEnv(VecEnv):
         if not np.isfinite(final_obs).all():
             raise FloatingPointError("Crazyflow produced a non-finite state")
         return obs, final_obs, reward, terminated, truncated & ~terminated, info
+
+    def set_paths(self, coefficients, duration=6.0, rotation=0.0):
+        """Fly given path coefficients (n_worlds, PATH_MODES, 2) instead of the task prior.
+
+        Applies to every reset until called again; None restores the prior.
+        """
+        n = self.num_envs if hasattr(self, "num_envs") else self.sim.n_worlds
+        use = coefficients is not None
+        coef = np.zeros((n, T.PATH_MODES, 2), np.float32)
+        if use:
+            coef = np.asarray(coefficients, np.float32).reshape(n, T.PATH_MODES, 2)
+        put = lambda x: jax.device_put(jnp.asarray(x), self.sim.device)  # noqa: E731
+        self._override = {
+            "use": put(use),
+            "c": put(coef),
+            "T": put(np.full(n, duration, np.float32)),
+            "rot": put(np.full(n, rotation, np.float32)),
+        }
 
     def step_async(self, actions):
         actions = np.asarray(actions, dtype=np.float32)
