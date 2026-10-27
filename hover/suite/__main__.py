@@ -22,7 +22,7 @@ from hover.__main__ import (
 from hover.env import SIM_DEVICES
 from hover.suite import tasks as T
 from hover.suite.controllers import TrackingPID, Zero
-from hover.suite.env import DRONES, DYNAMICS, SuiteVecEnv, drone_constants
+from hover.suite.env import DRONES, DYNAMICS, drone_constants, training_env
 from hover.suite.evaluate import FINAL_SEED, evaluate
 
 TUNING_SEED = 10000
@@ -81,7 +81,15 @@ def train(args):
     config["ppo"] = settings
     require_torch_device(args.policy_device)
     env = VecMonitor(
-        SuiteVecEnv(tasks, args.n_worlds, smoothness=args.smoothness, **env_kwargs(args))
+        training_env(
+            tasks,
+            args.n_worlds,
+            dynamics=args.dynamics,
+            smoothness=args.smoothness,
+            robustness=args.robustness,
+            device=args.sim_device,
+            drone=args.drone,
+        )
     )
     try:
         checkpoint = latest_checkpoint(output) if resume else None
@@ -121,11 +129,15 @@ def train(args):
             model.learn(total_timesteps=remaining, callback=callbacks, reset_num_timesteps=False)
         model.save(output / "policy.zip")
         restored = PPO.load(output / "policy.zip", device=args.policy_device)
+        eval_kwargs = {
+            **env_kwargs(args),
+            "dynamics": "so_rpy" if args.dynamics == "mix" else args.dynamics,
+        }
         result = {
             "actual_training_steps": model.num_timesteps,
             "throughput": callbacks[0].summary() if remaining > 0 else None,
             "tuning_evaluation": evaluate(
-                restored, tasks, args.eval_episodes, TUNING_SEED, **env_kwargs(args)
+                restored, tasks, args.eval_episodes, TUNING_SEED, **eval_kwargs
             ),
         }
         (output / "evaluation.json").write_text(json.dumps(result, indent=2) + "\n")
@@ -140,7 +152,12 @@ def main():
     parser.add_argument("--tasks", nargs="+", default=["hover"], help="task names or 'all'")
     parser.add_argument("--robustness", choices=list(T.ROBUSTNESS), default="none")
     parser.add_argument("--drone", choices=DRONES, default="cf2x_L250")
-    parser.add_argument("--dynamics", choices=DYNAMICS, default="so_rpy")
+    parser.add_argument(
+        "--dynamics",
+        choices=[*DYNAMICS, "mix"],
+        default="so_rpy",
+        help="'mix' (training only): half the worlds on each model",
+    )
     parser.add_argument("--sim-device", choices=SIM_DEVICES, default="cpu")
     parser.add_argument("--policy-device", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument("--checkpoint", type=Path, help="PPO policy to evaluate/render/export")
@@ -191,6 +208,8 @@ def main():
     if (args.checkpoint is None) == (args.baseline is None):
         parser.error(f"{args.command} needs exactly one of --checkpoint or --baseline")
     seed = FINAL_SEED if args.seed is None else args.seed
+    if args.dynamics == "mix":
+        parser.error("evaluate and render need a single --dynamics model")
     policy = load_policy(args)
     if args.command == "evaluate":
         results = evaluate(policy, T.resolve(args.tasks), args.episodes, seed, **env_kwargs(args))

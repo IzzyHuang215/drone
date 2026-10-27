@@ -1,5 +1,5 @@
 #!/bin/bash
-# PID and zero-action baselines on every suite task under the four evaluation conditions.
+# PID and zero-action baselines on every suite task under the five evaluation conditions.
 #SBATCH --job-name=drone-suite-baselines
 #SBATCH --account=dbgoodma-goodman-laboratory
 #SBATCH --partition=genoa-std-mem
@@ -12,14 +12,15 @@ export JAX_PLATFORMS=cpu
 OUT=runs/suite/baselines
 mkdir -p "$OUT"
 for baseline in pid zero; do
-  for rob in none real; do
-    for dyn in so_rpy first_principles; do
-      out=$OUT/$baseline-$rob-$dyn.json
-      [[ -f $out ]] && continue
-      uv run --locked --extra gpu python -m hover.suite evaluate --baseline "$baseline" \
-        --tasks all --robustness "$rob" --dynamics "$dyn" --episodes "${EPISODES:-100}" \
-        --output "$out" > /dev/null
-    done
+  for cond in "none so_rpy cf2x_L250" "real so_rpy cf2x_L250" "real first_principles cf2x_L250" \
+      "real so_rpy cf2x_P250" "real first_principles cf2x_P250"; do
+    read -r rob dyn drone <<< "$cond"
+    out=$OUT/$baseline-$rob-$dyn.json
+    [[ $drone == cf2x_L250 ]] || out=$OUT/$baseline-$rob-$dyn-$drone.json
+    [[ -f $out ]] && continue
+    uv run --locked --extra gpu python -m hover.suite evaluate --baseline "$baseline" \
+      --tasks all --robustness "$rob" --dynamics "$dyn" --drone "$drone" \
+      --episodes "${EPISODES:-100}" --output "$out" > /dev/null
   done
 done
 echo done

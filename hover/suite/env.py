@@ -551,3 +551,62 @@ class SuiteVecEnv(VecEnv):
 
     def env_is_wrapped(self, wrapper_class, indices=None):
         return [False for _ in self._get_indices(indices)]
+
+
+class MixedVecEnv(VecEnv):
+    """Several SuiteVecEnvs (e.g. different dynamics models) stepped as one vector env."""
+
+    render_mode = None
+
+    def __init__(self, envs):
+        self.envs = list(envs)
+        self.sizes = [e.num_envs for e in self.envs]
+        first = self.envs[0]
+        super().__init__(sum(self.sizes), first.observation_space, first.action_space)
+
+    def reset(self):
+        seed = self._seeds[0] if self._seeds and self._seeds[0] is not None else None
+        if seed is None:
+            seed = int(np.random.randint(0, np.iinfo(np.uint32).max, dtype=np.uint32))
+        for i, env in enumerate(self.envs):
+            env.seed(seed + 7919 * i)
+        self._reset_seeds()
+        return np.concatenate([env.reset() for env in self.envs])
+
+    def step_async(self, actions):
+        for env, part in zip(self.envs, np.split(np.asarray(actions), np.cumsum(self.sizes)[:-1])):
+            env.step_async(part)
+
+    def step_wait(self):
+        results = [env.step_wait() for env in self.envs]
+        obs, rewards, dones, infos = zip(*results)
+        return (
+            np.concatenate(obs),
+            np.concatenate(rewards),
+            np.concatenate(dones),
+            [info for part in infos for info in part],
+        )
+
+    def close(self):
+        for env in self.envs:
+            env.close()
+
+    def get_attr(self, attr_name, indices=None):
+        return [getattr(self, attr_name) for _ in self._get_indices(indices)]
+
+    def set_attr(self, attr_name, value, indices=None):
+        raise NotImplementedError
+
+    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
+        raise NotImplementedError
+
+    def env_is_wrapped(self, wrapper_class, indices=None):
+        return [False for _ in self._get_indices(indices)]
+
+
+def training_env(tasks, n_worlds, dynamics="so_rpy", **kwargs):
+    """One model, or ``dynamics="mix"``: half the worlds on each of DYNAMICS."""
+    if dynamics != "mix":
+        return SuiteVecEnv(tasks, n_worlds, dynamics=dynamics, **kwargs)
+    share = n_worlds // len(DYNAMICS)
+    return MixedVecEnv(SuiteVecEnv(tasks, share, dynamics=d, **kwargs) for d in DYNAMICS)

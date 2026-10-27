@@ -15,12 +15,18 @@ import numpy as np
 
 from hover.suite import tasks as T
 
+# (robustness, dynamics, drone, column); the file suffix drops the drone for cf2x_L250.
 CONDITIONS = [
-    ("none", "so_rpy", "Nominal"),
-    ("real", "so_rpy", "Realistic"),
-    ("none", "first_principles", "Unseen model"),
-    ("real", "first_principles", "Realistic + unseen"),
+    ("none", "so_rpy", "cf2x_L250", "Nominal"),
+    ("real", "so_rpy", "cf2x_L250", "Realistic"),
+    ("real", "first_principles", "cf2x_L250", "Second model"),
+    ("real", "so_rpy", "cf2x_P250", "Held-out drone"),
+    ("real", "first_principles", "cf2x_P250", "Held-out drone, 2nd model"),
 ]
+
+
+def suffix(rob, dyn, drone):
+    return f"{rob}-{dyn}" + ("" if drone == "cf2x_L250" else f"-{drone}")
 
 
 def load(path):
@@ -32,18 +38,18 @@ def collect(root):
     policies = defaultdict(lambda: defaultdict(list))
     for name in ("pid", "zero"):
         label = {"pid": "PID baseline", "zero": "Zero action"}[name]
-        for rob, dyn, _ in CONDITIONS:
-            policies[label][(rob, dyn)].append(
-                load(root / "baselines" / f"{name}-{rob}-{dyn}.json")
+        for cond in CONDITIONS:
+            policies[label][cond].append(
+                load(root / "baselines" / f"{name}-{suffix(*cond[:3])}.json")
             )
     for run in sorted(root.glob("*/*-s*/")):
         if run.parent.name == "baselines" or not (run / "policy.zip").exists():
             continue
         label = f"{run.parent.name}/{re.sub(r'-s\d+$', '', run.name)}"
-        for rob, dyn, _ in CONDITIONS:
-            result = load(run / f"final-{rob}-{dyn}.json")
+        for cond in CONDITIONS:
+            result = load(run / f"final-{suffix(*cond[:3])}.json")
             if result:
-                policies[label][(rob, dyn)].append(result)
+                policies[label][cond].append(result)
     return policies
 
 
@@ -76,8 +82,8 @@ def main(root):
             if not any(task.name in r for runs in conditions.values() for r in runs):
                 continue
             success, error = [], []
-            for rob, dyn, _ in CONDITIONS:
-                runs = [r[task.name] for r in conditions[(rob, dyn)] if task.name in r]
+            for cond in CONDITIONS:
+                runs = [r[task.name] for r in conditions[cond] if task.name in r]
                 success.append(cell([r["success_rate"] for r in runs]))
                 error.append(cell([r["mean_error_m"] for r in runs], percent=False))
             rows.append(f"| {label} | " + " | ".join(success) + " |")
@@ -87,7 +93,7 @@ def main(root):
         lines += [
             f"### {task.level}. {task.name}: {task.summary}",
             "",
-            "| Policy | " + " | ".join(c[2] for c in CONDITIONS) + " |",
+            "| Policy | " + " | ".join(c[3] for c in CONDITIONS) + " |",
             "| --- | " + " | ".join("---:" for _ in CONDITIONS) + " |",
             *rows,
             "",
