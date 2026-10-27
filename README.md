@@ -19,3 +19,5 @@ The short validation runs exercised the pipeline but did **not** converge to sta
 See [measured results and limitations](docs/hover-validation.md).
 
 For cluster setup, give the next agent [the NVIDIA HPC handoff](docs/hpc-handoff.md).
+The resulting PARCC setup (GPU extra, batched worlds, checkpoint/resume, SLURM jobs) is in
+[docs/hpc-setup.md](docs/hpc-setup.md); with enough data PPO now hovers stably in simulation.

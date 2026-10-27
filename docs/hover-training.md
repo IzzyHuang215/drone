@@ -16,7 +16,8 @@ uv run pytest -q
 
 The first run compiles JAX kernels and may take longer. The default is headless CPU
 execution, tested on macOS arm64. Training explicitly uses PyTorch CPU, not MPS.
-Crazyflow's CUDA GPU extra targets Linux x86-64; this workflow does not enable it.
+NVIDIA GPU support (Linux x86-64 only) is an optional extra; see [hpc-setup.md](hpc-setup.md).
+For much faster CPU training, use batched worlds (`--n-worlds 64 --batch-size 1024`).
 No simulator source checkout or hardware firmware is needed.
 
 MuJoCo may print notices about missing optional `warp` / `mujoco_warp` packages;

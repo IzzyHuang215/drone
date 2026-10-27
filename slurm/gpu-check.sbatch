@@ -39,8 +39,7 @@ train vec256-cpu-cuda --n-worlds 256 "${vec[@]}" --policy-device cuda
 train vec256-gpu-cuda --n-worlds 256 "${vec[@]}" --sim-device gpu --policy-device cuda
 train vec4096-gpu-cuda --n-worlds 4096 --n-steps 16 --batch-size 16384 --steps 1048576 \
   --sim-device gpu --policy-device cuda
-nvidia-smi --query-gpu=memory.used --format=csv
-for run in "$OUT"/train-*; do
+for run in "$OUT"/train-*/; do
   printf '%s ' "$(basename "$run")"
-  python3 -c 'import json,sys; t=json.load(open(sys.argv[1]))["throughput"]; print(round(t["steady_steps_per_second"]), round(t["wall_seconds"], 1))' "$run/evaluation.json"
+  python3 -c 'import json,sys; t=json.load(open(sys.argv[1]))["throughput"]; print(round(t["steady_steps_per_second"]), round(t["wall_seconds"], 1))' "${run}evaluation.json"
 done | tee "$OUT/train-throughput.txt"
