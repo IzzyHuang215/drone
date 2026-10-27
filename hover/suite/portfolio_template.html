@@ -1,0 +1,331 @@
+<title>Crazyflie Flight Curriculum</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&family=Saira+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: a flight-test card. One column of numbered curriculum levels climbing from hover to
+   waypoints, each pairing a flight video with its results across five test conditions. */
+:root {
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --ink: #131820;
+  --ink-2: #48515f;
+  --muted: #6f7988;
+  --rule: #d8dde5;
+  --grid: #e8ecf1;
+  --accent: #b8430b;
+  --accent-soft: #fbe9df;
+  --s1: #2a78d6;
+  --s2: #1baf7a;
+  --ref: #8b94a3;
+  --good: #1d7a43;
+  --warn: #9a6400;
+  --bad: #b42318;
+  --display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131a; --panel: #151b24; --ink: #e7ebf1; --ink-2: #b4bdcb; --muted: #8893a4;
+    --rule: #283140; --grid: #1e2632; --accent: #f08b4f; --accent-soft: #3a2316;
+    --s1: #3987e5; --s2: #199e70; --ref: #98a1b0; --good: #5cc98a; --warn: #e3b04b; --bad: #f2867c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131a; --panel: #151b24; --ink: #e7ebf1; --ink-2: #b4bdcb; --muted: #8893a4;
+  --rule: #283140; --grid: #1e2632; --accent: #f08b4f; --accent-soft: #3a2316;
+  --s1: #3987e5; --s2: #199e70; --ref: #98a1b0; --good: #5cc98a; --warn: #e3b04b; --bad: #f2867c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+}
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: 0.01em; text-wrap: balance; margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(2.6rem, 6vw, 4rem); font-weight: 700; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.6rem; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font: 500 0.78rem/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+header { display: grid; gap: 18px; }
+.lede { font-size: 1.15rem; color: var(--ink-2); }
+.status { display: inline-flex; gap: 8px; align-items: center; justify-self: start; font: 500 0.82rem var(--mono);
+  color: var(--accent); background: var(--accent-soft); padding: 6px 10px; border-radius: 4px; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.fact { padding: 16px 16px 16px 0; display: grid; gap: 4px; min-width: 0; }
+.fact + .fact { border-left: 1px solid var(--rule); padding-left: 16px; }
+.fact b { font: 600 2rem/1 var(--display); }
+.fact span { color: var(--ink-2); font-size: 0.92rem; }
+@media (max-width: 520px) { .fact + .fact { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); } }
+
+section.overview { display: grid; gap: 16px; }
+.chart-wrap { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 20px; position: relative; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.88rem; color: var(--ink-2); margin-bottom: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend svg { flex: none; }
+#chart { width: 100%; height: auto; display: block; overflow: visible; }
+#chart text { font-family: var(--mono); font-size: 12px; fill: var(--ink-2); }
+#chart .task { font-family: var(--body); font-size: 13px; fill: var(--ink); }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font: 0.8rem/1.4 var(--mono);
+  padding: 6px 8px; border-radius: 4px; white-space: nowrap; transform: translate(-50%, -110%); }
+.note { font-size: 0.88rem; color: var(--muted); }
+
+.levels { display: grid; gap: 48px; }
+.level { display: grid; gap: 20px; padding-top: 28px; border-top: 2px solid var(--ink); }
+.level-head { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; align-items: baseline; }
+.level-num { font: 700 3rem/0.9 var(--display); color: var(--accent); grid-row: span 2; font-variant-numeric: tabular-nums; }
+.level-head p { color: var(--ink-2); }
+.level-body { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 860px) { .level-body { grid-template-columns: minmax(0, 1fr); } }
+figure { margin: 0; display: grid; gap: 8px; }
+.video { position: relative; aspect-ratio: 4 / 3; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; max-width: 100%; }
+.video img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.toggle { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; justify-self: start; }
+.toggle button { font: 500 0.8rem var(--mono); background: var(--panel); color: var(--ink-2); border: 0; padding: 6px 10px; cursor: pointer; }
+.toggle button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+figcaption { font-size: 0.84rem; color: var(--muted); }
+.criteria { font-size: 0.9rem; color: var(--ink-2); }
+.criteria b { font-weight: 600; color: var(--ink); }
+.table-wrap { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th, td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font: 500 0.72rem/1.3 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); vertical-align: bottom; white-space: normal; }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--body); }
+td .range { color: var(--muted); font-size: 0.75rem; display: block; }
+tr.best td:first-child { font-weight: 600; }
+.pct-hi { color: var(--good); } .pct-mid { color: var(--warn); } .pct-lo { color: var(--bad); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+
+section.findings, section.next, section.method { display: grid; gap: 16px; }
+ol.findings-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; counter-reset: f; }
+ol.findings-list li { display: grid; grid-template-columns: 2.2rem 1fr; gap: 12px; counter-increment: f; max-width: 76ch; }
+ol.findings-list li::before { content: counter(f, decimal-leading-zero); font: 600 1.1rem var(--mono); color: var(--accent); }
+ol.steps { margin: 0; padding-left: 1.3rem; display: grid; gap: 8px; max-width: 72ch; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--grid); padding: 1px 5px; border-radius: 3px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">Simulation portfolio · Crazyflie 2.x · __DATE__</div>
+    <h1>Crazyflie Flight Curriculum</h1>
+    <p class="lede">Nine flight tasks for a palm-sized quadcopter, from holding still to flying a
+      waypoint course. Every policy commands the drone the way a laptop would command a real
+      Crazyflie: attitude and thrust setpoints sent to its onboard stabilizer, 100 times a second.</p>
+    <div class="status">Simulation only. Nothing here has flown yet.</div>
+    <div class="facts" id="facts"></div>
+  </header>
+
+  <section class="overview" aria-labelledby="overview-title">
+    <div class="eyebrow">The hardest test</div>
+    <h2 id="overview-title">Success on a drone no policy trained on</h2>
+    <p>Each row is one task. Success rate over 100 held-out episodes on the held-out Crazyflie
+      (<span class="mono">cf2x_P250</span>) in the second physics model, with realistic sensor
+      noise, latency and parameter errors. Dots are the mean of three training seeds.</p>
+    <div class="chart-wrap">
+      <div class="legend" id="legend"></div>
+      <svg id="chart" role="img" aria-label="Success rate per task for the PID baseline, robust specialists and the robust generalist"></svg>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <p class="note">Every number is in the per-level tables below.</p>
+  </section>
+
+  <section class="levels" id="levels" aria-label="Curriculum levels"></section>
+
+  <section class="findings" aria-labelledby="findings-title">
+    <div class="eyebrow">What it took</div>
+    <h2 id="findings-title">Findings along the way</h2>
+    <ol class="findings-list" id="findings"></ol>
+  </section>
+
+  <section class="next" aria-labelledby="next-title">
+    <div class="eyebrow">Toward hardware</div>
+    <h2 id="next-title">Before the first real flight</h2>
+    <ol class="steps">
+      <li>Export a policy: <code>python -m hover.suite export --checkpoint … --output policy.npz</code>. It runs on NumPy alone, and a test checks it reproduces the simulator's observations and actions.</li>
+      <li>Fit absolute positioning (Lighthouse, Loco or motion capture). The Flow deck alone drifts too much for these tasks.</li>
+      <li>Bench test with propellers off: confirm 100 Hz timing and the roll, pitch and yaw signs.</li>
+      <li>Hover with the Crazyflie's own controller, log the hover thrust, then hand over to the policy with a watchdog that takes control back.</li>
+      <li>Climb the curriculum in order, comparing every flight against the PID baseline on the same reference.</li>
+    </ol>
+    <p class="note">Full procedure: <code>docs/deployment.md</code> on branch <code>hpc-gpu-setup</code> of IzzyHuang215/drone.</p>
+  </section>
+
+  <section class="method" aria-labelledby="method-title">
+    <div class="eyebrow">Method</div>
+    <h2 id="method-title">How the numbers were made</h2>
+    <p id="method"></p>
+  </section>
+</main>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById("data").textContent);
+  const conds = data.conditions;
+  const hardest = conds.length - 1;
+  const pct = v => v == null ? "—" : `${Math.round(100 * v)}%`;
+  const tone = v => v == null ? "" : v >= 0.9 ? "pct-hi" : v >= 0.6 ? "pct-mid" : "pct-lo";
+  const el = (tag, attrs = {}, html = "") => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (html) e.innerHTML = html;
+    return e;
+  };
+  const series = [
+    { key: "pid", label: "PID baseline", color: "var(--ref)", shape: "ring" },
+    { key: "specialist", label: "Robust specialist (one per task)", color: "var(--s1)", shape: "circle" },
+    { key: "generalist", label: "Robust generalist (one for all tasks)", color: "var(--s2)", shape: "diamond" },
+  ];
+  const mark = (shape, color, x, y, r) => {
+    const ns = "http://www.w3.org/2000/svg";
+    let m;
+    if (shape === "diamond") {
+      m = document.createElementNS(ns, "path");
+      m.setAttribute("d", `M${x} ${y - r - 1}L${x + r + 1} ${y}L${x} ${y + r + 1}L${x - r - 1} ${y}Z`);
+      m.setAttribute("fill", color);
+    } else {
+      m = document.createElementNS(ns, "circle");
+      m.setAttribute("cx", x); m.setAttribute("cy", y); m.setAttribute("r", r);
+      m.setAttribute("fill", shape === "ring" ? "var(--panel)" : color);
+      m.setAttribute("stroke", shape === "ring" ? color : "var(--panel)");
+      m.setAttribute("stroke-width", 2);
+    }
+    return m;
+  };
+
+  // Facts
+  const facts = document.getElementById("facts");
+  for (const f of data.facts) facts.append(el("div", { class: "fact" }, `<b class="mono">${f.value}</b><span>${f.label}</span>`));
+
+  // Legend
+  const legend = document.getElementById("legend");
+  for (const s of series) {
+    const sw = `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"></svg>`;
+    const item = el("span", {}, sw + s.label);
+    item.querySelector("svg").append(mark(s.shape, s.color, 7, 7, 5));
+    legend.append(item);
+  }
+
+  // Dot plot, one row per task, one x scale 0-100%.
+  const svg = document.getElementById("chart");
+  const ns = "http://www.w3.org/2000/svg";
+  const W = 760, left = 150, right = 24, top = 26, row = 34, H = top + row * data.tasks.length + 8;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const x = v => left + v * (W - left - right);
+  for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", x(t)); line.setAttribute("x2", x(t));
+    line.setAttribute("y1", top - 6); line.setAttribute("y2", H - 4);
+    line.setAttribute("stroke", "var(--grid)"); line.setAttribute("stroke-width", 1);
+    svg.append(line);
+    const label = document.createElementNS(ns, "text");
+    label.setAttribute("x", x(t)); label.setAttribute("y", 12); label.setAttribute("text-anchor", "middle");
+    label.textContent = `${t * 100}%`;
+    svg.append(label);
+  }
+  const tip = document.getElementById("tip");
+  const wrap = svg.parentElement;
+  data.tasks.forEach((task, i) => {
+    const y = top + row * i + row / 2;
+    const name = document.createElementNS(ns, "text");
+    name.setAttribute("x", 0); name.setAttribute("y", y + 4); name.setAttribute("class", "task");
+    name.textContent = `${task.level}  ${task.name}`;
+    svg.append(name);
+    const vals = series.map(s => ({ s, v: task.chart[s.key] })).filter(d => d.v != null);
+    if (vals.length > 1) {
+      const lo = Math.min(...vals.map(d => d.v)), hi = Math.max(...vals.map(d => d.v));
+      const span = document.createElementNS(ns, "line");
+      span.setAttribute("x1", x(lo)); span.setAttribute("x2", x(hi)); span.setAttribute("y1", y); span.setAttribute("y2", y);
+      span.setAttribute("stroke", "var(--rule)"); span.setAttribute("stroke-width", 2);
+      svg.append(span);
+    }
+    for (const { s, v } of vals) {
+      const m = mark(s.shape, s.color, x(v), y, 6);
+      const hit = document.createElementNS(ns, "circle");
+      hit.setAttribute("cx", x(v)); hit.setAttribute("cy", y); hit.setAttribute("r", 14);
+      hit.setAttribute("fill", "transparent"); hit.setAttribute("tabindex", 0);
+      hit.setAttribute("aria-label", `${task.name}, ${s.label}: ${pct(v)}`);
+      const show = () => {
+        const box = svg.getBoundingClientRect(), wb = wrap.getBoundingClientRect();
+        tip.textContent = `${task.name} · ${s.label.split(" (")[0]} · ${pct(v)}`;
+        tip.style.left = `${box.left - wb.left + (x(v) / W) * box.width}px`;
+        tip.style.top = `${box.top - wb.top + (y / H) * box.height}px`;
+        tip.hidden = false;
+      };
+      hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
+      hit.addEventListener("mouseleave", () => tip.hidden = true); hit.addEventListener("blur", () => tip.hidden = true);
+      svg.append(m, hit);
+    }
+  });
+
+  // Levels
+  const levels = document.getElementById("levels");
+  for (const task of data.tasks) {
+    const sec = el("article", { class: "level", id: task.name });
+    sec.append(el("div", { class: "level-head" },
+      `<div class="level-num">${task.level}</div><h3>${task.title}</h3><p>${task.summary}</p>`));
+    const body = el("div", { class: "level-body" });
+    const fig = el("figure");
+    if (task.video) {
+      const box = el("div", { class: "video" });
+      const img = el("img", { src: task.video.policy, alt: `${task.title}: ${task.video.policy_label} flying the held-out drone`, loading: "lazy", width: 480, height: 360 });
+      box.append(img);
+      const toggle = el("div", { class: "toggle", role: "group", "aria-label": "Controller shown" });
+      const cap = el("figcaption");
+      const opts = [["policy", task.video.policy_label, task.video.policy_note], ["pid", "PID baseline", task.video.pid_note]];
+      opts.forEach(([k, label, note], j) => {
+        const b = el("button", { type: "button", "aria-pressed": j === 0 ? "true" : "false" }, label);
+        b.addEventListener("click", () => {
+          img.src = task.video[k];
+          img.alt = `${task.title}: ${label} flying the held-out drone`;
+          toggle.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+          cap.textContent = note;
+        });
+        toggle.append(b);
+      });
+      cap.textContent = task.video.policy_note;
+      fig.append(toggle, box, cap);
+    }
+    body.append(fig);
+    const side = el("div", { style: "display:grid;gap:14px;min-width:0" });
+    side.append(el("p", { class: "criteria" }, `<b>Success:</b> ${task.criteria}`));
+    const wrapT = el("div", { class: "table-wrap" });
+    const table = el("table");
+    table.append(el("thead", {}, `<tr><th>Controller</th>${conds.map(c => `<th>${c.label}</th>`).join("")}</tr>`));
+    const tb = el("tbody");
+    for (const r of task.rows) {
+      const tr = el("tr", r.best ? { class: "best" } : {});
+      const key = r.color ? `<span class="key" style="background:${r.color}"></span>` : "";
+      tr.innerHTML = `<td>${key}${r.label}</td>` + r.cells.map(c =>
+        `<td class="${tone(c.mean)}">${pct(c.mean)}${c.range ? `<span class="range">${c.range}</span>` : ""}</td>`).join("");
+      tb.append(tr);
+    }
+    table.append(tb); wrapT.append(table); side.append(wrapT);
+    side.append(el("p", { class: "note" }, task.note));
+    body.append(side);
+    sec.append(body);
+    levels.append(sec);
+  }
+
+  const findings = document.getElementById("findings");
+  for (const f of data.findings) findings.append(el("li", {}, `<p>${f}</p>`));
+  document.getElementById("method").innerHTML = data.method;
+})();
+</script>
