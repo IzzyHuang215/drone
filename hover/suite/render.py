@@ -32,7 +32,7 @@ def _markers(env, path, task):
             dict(
                 type=mujoco.mjtGeom.mjGEOM_CYLINDER,
                 pos=ep["anchor"][0] + np.array([0, 0, 0.002]),
-                size=np.array([0.15, 0.15, 0.002]),
+                size=np.array([0.15, 0.002, 0.0]),  # cylinder: radius, half-height
                 rgba=(0.9, 0.2, 0.2, 0.8),
             )
         )
@@ -48,7 +48,10 @@ def render(policy, task, seed, video=None, fps=25, width=640, height=480, **env_
         obs = env.reset()
         horizon = round(task.episode_seconds / env.dt)
         path = _path(env._ep, horizon, env.dt)
-        points = np.concatenate([path, jax.device_get(env.sim.data.states.pos)[0]])
+        points = [path, jax.device_get(env.sim.data.states.pos)[0]]
+        if task.reference == "waypoints":
+            points.append(np.asarray(jax.device_get(env._ep["wps"]))[0][: task.n_waypoints])
+        points = np.concatenate(points)
         center = (points.max(0) + points.min(0)) / 2
         extent = float(np.max(np.linalg.norm(points - center, axis=1)))
         camera = {
@@ -90,6 +93,8 @@ def render(policy, task, seed, video=None, fps=25, width=640, height=480, **env_
                 draw()
         if video:
             import imageio.v2 as imageio
+
+            frames += frames[-1:] * fps  # hold the last frame: the world resets on termination
 
             imageio.mimsave(video, frames, duration=1000 / fps, loop=0)
         return {

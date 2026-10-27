@@ -181,9 +181,16 @@ FINDINGS = [
     "Sensor noise was not the hard part; the physics model was. Policies trained on one model "
     "shrugged off noise, latency and thrust errors, but failed on a second physics model whose "
     "attitude loop is about 30 ms slower: figure-eight and landing dropped to 0–1%.",
-    "Training across both physics models closed most of that gap. On a Crazyflie variant no "
-    "policy ever saw, the robust specialists clearly beat the PID baseline on every task except the "
-    "waypoint course. Randomizing response delay alone did not do it.",
+    "Training across both physics models closed most of that gap. On the held-out drone in "
+    "the second physics model, the robust specialists beat the PID baseline by wide margins on "
+    "seven tasks, matched it on landing (92% vs 88%) and trailed it on the waypoint course "
+    "(66% vs 84%). Randomizing response delay alone had not done it.",
+    "One network can fly the whole curriculum. The robust generalist, trained on all nine tasks "
+    "at once, scores about as well as the specialists on the hardest test and better on hover, "
+    "reach and waypoints, but it lands less reliably (64% vs 92% for the landing specialist).",
+    "More training is not always the fix. Continuing the waypoint specialists to 30 million "
+    "steps made them worse and less consistent (41%, seeds ranging 23–75%). The waypoint course "
+    "remains the one task where a classical controller is the better choice today.",
 ]
 METHOD = (
     "Simulator: Crazyflow 0.4.0 with Crazyflie 2.x models at 500 Hz physics and a 100 Hz policy. "

@@ -14,7 +14,7 @@ GROUP=${GROUP:-specialist-robust}
 OUT=runs/suite/videos/$GROUP
 mkdir -p "$OUT"
 common=(--robustness real --drone cf2x_P250 --dynamics "${DYNAMICS:-so_rpy}" --fps 20 --size 480 360)
-for task in hover hover-wide reach recover disturbance circle figure8 landing waypoints; do
+for task in ${TASKS:-hover hover-wide reach recover disturbance circle figure8 landing waypoints}; do
   policy=runs/suite/$GROUP/$task-s0/policy.zip
   [[ $GROUP == generalist-robust ]] && policy=runs/suite/$GROUP/all-s0/policy.zip
   uv run --locked --extra gpu python -m hover.suite render --checkpoint "$policy" --tasks "$task" \

@@ -28,6 +28,9 @@ is not enough for the trajectory, waypoint or landing tasks.
 
 ## 1. Export the policy
 
+Ready-made exports are in [`policies/`](../policies/): `generalist.npz` for every task except
+landing and `landing.npz` for landing, both for `cf2x_L250`. To export another run:
+
 ```sh
 uv run python -m hover.suite export --checkpoint runs/suite/<run>/policy.zip \
   --output policy.npz --drone cf2x_L250
