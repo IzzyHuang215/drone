@@ -80,7 +80,9 @@ def train(args):
     )
     config["ppo"] = settings
     require_torch_device(args.policy_device)
-    env = VecMonitor(SuiteVecEnv(tasks, args.n_worlds, **env_kwargs(args)))
+    env = VecMonitor(
+        SuiteVecEnv(tasks, args.n_worlds, smoothness=args.smoothness, **env_kwargs(args))
+    )
     try:
         checkpoint = latest_checkpoint(output) if resume else None
         if checkpoint:
@@ -158,6 +160,12 @@ def main():
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--ent-coef", type=float, default=0.0)
+    parser.add_argument(
+        "--smoothness",
+        type=float,
+        default=0.05,
+        help="reward penalty weight on squared action changes",
+    )
     parser.add_argument("--log-std-init", type=float, default=-1.0)
     parser.add_argument("--net-arch", type=positive_int, nargs="+", default=[128, 128])
     parser.add_argument("--checkpoint-every", type=int, default=1_000_000)

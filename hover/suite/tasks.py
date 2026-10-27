@@ -228,6 +228,10 @@ ROBUSTNESS = {
         gyro_noise=0.05,
     ),
 }
+# Wider timing uncertainty: up to 50 ms command latency and a 100 ms attitude lag.
+ROBUSTNESS["wide"] = Robustness(
+    **{**ROBUSTNESS["real"].__dict__, "name": "wide", "latency_steps": 5, "attitude_lag": 0.1}
+)
 
 # Numeric task table for the jitted environment: one row per task, one column per field.
 NUMERIC_FIELDS = [

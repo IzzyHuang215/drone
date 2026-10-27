@@ -217,6 +217,7 @@ class SuiteVecEnv(VecEnv):
         device="cpu",
         drone="cf2x_L250",
         dynamics="so_rpy",
+        smoothness=0.05,
     ):
         if n_worlds < 1:
             raise ValueError("n_worlds must be positive")
@@ -238,6 +239,7 @@ class SuiteVecEnv(VecEnv):
         self.constants = c = drone_constants(drone, dynamics)
         table, columns = T.task_table(self.tasks)
         self.horizons = np.array([round(t.episode_seconds / DT) for t in self.tasks])
+        self.smoothness = smoothness
         self._fns = self._build(n_worlds, jnp.asarray(table), columns, c, self.robustness)
         self._key = self._ep = None
         self._actions = None
@@ -465,7 +467,7 @@ class SuiteVecEnv(VecEnv):
                 alive
                 + tracking
                 - 0.01 * jnp.sum(actions**2, -1)
-                - 0.05 * jnp.sum((actions - ep["prev_action"]) ** 2, -1)
+                - self.smoothness * jnp.sum((actions - ep["prev_action"]) ** 2, -1)
                 - 0.1 * (1 - up)
                 + 5.0 * reached
                 + 10.0 * landed
