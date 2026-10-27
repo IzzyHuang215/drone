@@ -42,15 +42,24 @@ def main():
     stored = pd.read_csv(RES / "evaluate_all.csv")
     b = basis()
     scene = {
-        "modes": MODES, "start": START, "goal": GOAL, "central": CENTRAL, "block": BLOCK,
-        "tasks": {k: [v[0], v[1]] for k, v in TASKS.items()}, "via_tolerance": VIA_TOLERANCE,
-        "duration": TRACKERS["tight"].duration, "source_commit": None,
+        "modes": MODES,
+        "start": START,
+        "goal": GOAL,
+        "central": CENTRAL,
+        "block": BLOCK,
+        "tasks": {k: [v[0], v[1]] for k, v in TASKS.items()},
+        "via_tolerance": VIA_TOLERANCE,
+        "duration": TRACKERS["tight"].duration,
+        "source_commit": None,
     }
     (args.out / "scene.json").write_text(json.dumps(scene, indent=2))
     optimiser = optimiser_plans()
     for seed in args.seeds:
-        rows = stored[(stored.seed == seed) & stored.experiment.isin(["baseline", "objective"])
-                      & stored.mse.notna()]
+        rows = stored[
+            (stored.seed == seed)
+            & stored.experiment.isin(["baseline", "objective"])
+            & stored.mse.notna()
+        ]
         plans = regenerate(seed, rows)
         arrays, cells = {}, []
         for (task, method), flows in plans.items():
@@ -72,7 +81,9 @@ def main():
             for tracker, condition in DI_RUNS:
                 _, ok = run_batch(c, task, TRACKERS[tracker], CONDITIONS[condition], seed)
                 arrays[f"{key}|di_{tracker}_{condition}"] = ok.numpy()
-            cells.append({"task": task, "method": "optimiser", "flow": "optimiser", "sampler_gain": None})
+            cells.append(
+                {"task": task, "method": "optimiser", "flow": "optimiser", "sampler_gain": None}
+            )
         np.savez_compressed(args.out / f"seed{seed}.npz", **arrays)
         (args.out / f"seed{seed}.json").write_text(json.dumps(cells, indent=2))
         print(f"seed {seed}: {len(cells)} cells", flush=True)

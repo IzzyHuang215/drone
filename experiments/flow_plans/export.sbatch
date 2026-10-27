@@ -13,5 +13,6 @@ DRONE=$PWD
 FLOWS=${FLOWS:-$DRONE/../ese6180-generative-flows}
 cd "$FLOWS"
 echo "flows commit $(git rev-parse HEAD)"
-UV_OFFLINE=1 uv run --no-sync python "$DRONE/experiments/flow_plans/export_plans.py" \
-  --out "$DRONE/runs/flow/plans" --paths "${PATHS:-512}"
+# SCRIPT=export_feasible.py OUT=plans-feasible for the feasibility-guided plan set.
+UV_OFFLINE=1 uv run --no-sync python "$DRONE/experiments/flow_plans/${SCRIPT:-export_plans.py}" \
+  --out "$DRONE/runs/flow/${OUT:-plans}" --paths "${PATHS:-512}"
