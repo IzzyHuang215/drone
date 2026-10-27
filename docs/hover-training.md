@@ -83,3 +83,24 @@ and held-out disturbances before considering physical transfer.
 ## Recorded validation
 
 See [the validation report](hover-validation.md) for the tested commands and measured results.
+
+## Watch a flight in MuJoCo
+
+`hover render` plays one deterministic episode, starting from `--eval-first-seed`, with the
+Crazyflie 3D model in MuJoCo. On a laptop with a display it opens the interactive viewer in
+real time; drag to rotate, right-drag to pan, scroll to zoom.
+
+```sh
+uv run python -m hover render --baseline pd                       # PD controller
+uv run python -m hover render --baseline zero                     # no feedback
+uv run python -m hover render --checkpoint runs/hover-100k/policy.zip --eval-first-seed 20000
+```
+
+To watch a policy trained on the cluster, copy its `policy.zip` (a few hundred KB) to the
+laptop first, for example
+`scp <user>@<cluster-login>:<repo>/runs/ppo-1m-cpu/seed-0/policy.zip runs/ppo-seed0.zip`.
+Checkpoints load on any OS and on CPU.
+
+On a headless machine, add `--video flight.gif` to render offscreen instead (Linux:
+`MUJOCO_GL=egl`, which also works without a GPU through Mesa). The GIF is 25 fps,
+640x480 and about 7 MB for a five-second episode.

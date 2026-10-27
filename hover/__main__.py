@@ -1,4 +1,4 @@
-"""Run with python -m hover {smoke,train,evaluate,baselines,benchmark,devices}."""
+"""Run with python -m hover {smoke,train,evaluate,baselines,benchmark,devices,render}."""
 
 import argparse
 import importlib.metadata
@@ -379,7 +379,8 @@ def nonnegative_int(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "command", choices=["smoke", "train", "evaluate", "baselines", "benchmark", "devices"]
+        "command",
+        choices=["smoke", "train", "evaluate", "baselines", "benchmark", "devices", "render"],
     )
     parser.add_argument(
         "--steps",
@@ -391,7 +392,13 @@ def main():
     parser.add_argument("--eval-episodes", type=positive_int, default=5)
     parser.add_argument("--eval-first-seed", type=int, default=EVAL_FIRST_SEED)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--checkpoint", type=Path, help="policy to evaluate")
+    parser.add_argument("--checkpoint", type=Path, help="PPO policy to evaluate or render")
+    parser.add_argument(
+        "--baseline",
+        choices=["pd", "zero"],
+        help="render a baseline controller instead of --checkpoint",
+    )
+    parser.add_argument("--video", type=Path, help="render: save a GIF instead of opening a window")
     parser.add_argument("--resume", type=Path, help="continue training in this run directory")
     parser.add_argument(
         "--checkpoint-every",
@@ -435,6 +442,18 @@ def main():
                 if terminated or truncated:
                     break
             print(json.dumps({"observation_shape": list(obs.shape), "reward": reward, **info}))
+            return
+        if args.command == "render":
+            from hover.render import render_episode
+
+            if (args.checkpoint is None) == (args.baseline is None):
+                parser.error("render needs exactly one of --checkpoint or --baseline")
+            if args.checkpoint:
+                policy = PPO.load(args.checkpoint, device=args.policy_device)
+            else:
+                policy = PositionPD() if args.baseline == "pd" else ZeroPolicy()
+            result = render_episode(policy, env, args.eval_first_seed, video=args.video)
+            print(json.dumps(result, indent=2))
             return
         if args.command == "baselines":
             results = {

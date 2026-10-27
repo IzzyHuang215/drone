@@ -1,6 +1,9 @@
 import json
+import os
 import subprocess
 import sys
+
+import pytest
 
 
 def test_train_checkpoint_can_be_evaluated(tmp_path):
@@ -107,3 +110,15 @@ def test_baselines_and_benchmark_report_json():
     bench = json.loads(run_hover("benchmark", "--n-worlds", 8, "--steps", 80, *common).stdout)
     assert bench["world_steps"] == 80
     assert bench["world_steps_per_second"] > 0
+
+
+@pytest.mark.skipif(
+    os.environ.get("MUJOCO_GL") not in ("egl", "osmesa"), reason="needs offscreen MuJoCo GL"
+)
+def test_render_writes_gif(tmp_path):
+    video = tmp_path / "flight.gif"
+    result = json.loads(
+        run_hover("render", "--baseline", "pd", "--episode-seconds", "0.1", "--video", video).stdout
+    )
+    assert video.stat().st_size > 0
+    assert result["crashed"] is False
