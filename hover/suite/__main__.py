@@ -166,6 +166,15 @@ def main():
     parser.add_argument("--seed", type=int, help="train: 0; evaluate/render: 20000 (final)")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--video", type=Path, help="render: save a GIF instead of a window")
+    parser.add_argument("--fps", type=positive_int, default=25, help="render: GIF frame rate")
+    parser.add_argument(
+        "--size",
+        type=positive_int,
+        nargs=2,
+        default=[640, 480],
+        metavar=("WIDTH", "HEIGHT"),
+        help="render: GIF size",
+    )
     # Training
     parser.add_argument("--resume", type=Path)
     parser.add_argument("--init-from", type=Path, help="warm-start from an easier task policy")
@@ -227,7 +236,18 @@ def main():
     from hover.suite.render import render
 
     (task,) = T.resolve(args.tasks)
-    print(json.dumps(render(policy, task, seed, video=args.video, **env_kwargs(args)), indent=2))
+    width, height = args.size
+    result = render(
+        policy,
+        task,
+        seed,
+        video=args.video,
+        fps=args.fps,
+        width=width,
+        height=height,
+        **env_kwargs(args),
+    )
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
