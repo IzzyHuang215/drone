@@ -1,0 +1,16 @@
+[project]
+name = "drone-hover"
+version = "0.1.0"
+description = "Crazyflow hover policy experiments"
+requires-python = ">=3.12,<3.13"
+dependencies = ["crazyflow==0.4.0", "stable-baselines3==2.9.2"]
+
+[dependency-groups]
+dev = ["pytest>=8,<9", "ruff>=0.14,<0.15"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
