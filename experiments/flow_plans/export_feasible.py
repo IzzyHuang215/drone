@@ -11,6 +11,11 @@ at the planning study's calibrated levels and on the same test noise) uses the t
 plus ``AccelerationLimit``, which penalizes reference acceleration beyond A_MAX, 80% of the
 horizontal acceleration a Crazyflie reaches at its 20 degree tilt limit, over the study's 6 s
 traversal. Unguided samples and the optimiser are unchanged and are not re-exported.
+
+The feasibility term is weighted by min(1, FEASIBILITY_CAP / level): the via tasks (levels at
+most ~23) use it at full weight, while the clearance task's levels (240-570) would make the
+added acceleration term too stiff for the sampler's integrator (the rollouts diverge to NaN), so
+there its effective strength is held at the cap, the same push the via tasks receive.
 """
 
 import argparse
@@ -34,6 +39,7 @@ from flowfb import rollout as ro  # noqa: E402
 
 DURATION = 6.0
 A_MAX = 0.8 * 9.81 * math.tan(0.35)
+FEASIBILITY_CAP = 25.0
 DI_RUNS = [("tight", "nominal"), ("tight", "force_1.5"), ("loose", "nominal")]
 
 
@@ -45,6 +51,7 @@ class AccelerationLimit:
     a_max: float = A_MAX
     duration: float = DURATION
     quadrature: int = 201
+    weight: float = 1.0
 
     def _acc(self, c):
         s = pl.grid(self.quadrature, c.dtype)
@@ -58,16 +65,15 @@ class AccelerationLimit:
     def value(self, c, t=1.0):
         _, acc = self._acc(c)
         depth = (acc.norm(dim=-1) - self.a_max).clamp_min(0.0)
-        return 0.5 * (depth**2).mean(1)
+        return 0.5 * self.weight * (depth**2).mean(1)
 
     def grad(self, c, t):
         weights, acc = self._acc(c)
         norm = acc.norm(dim=-1).clamp_min(1e-12)
         depth = (norm - self.a_max).clamp_min(0.0)
         push = (depth / norm)[..., None] * acc  # d(1/2 depth^2) / d acc
-        return (torch.einsum("sj,nsk->njk", weights, push) / weights.shape[0]).reshape(
-            c.shape[0], -1
-        )
+        grad = torch.einsum("sj,nsk->njk", weights, push) / weights.shape[0]
+        return self.weight * grad.reshape(c.shape[0], -1)
 
 
 @dataclass
@@ -106,11 +112,11 @@ def regenerate_feasible(seed, stored):
         "learned": ro.rollout(model, x0, 2 * STEPS)[-1],
         "ideal": ro.rollout(mix.field, x0, 2 * STEPS)[-1],
     }
-    feasibility = AccelerationLimit(basis())
     plans = {}
     for row in stored.itertuples():
         if row.method == "unguided":
             continue
+        feasibility = AccelerationLimit(basis(), weight=min(1.0, FEASIBILITY_CAP / row.level))
         pen, kind = Sum([penalty(row.task), feasibility]), TASKS[row.task][0]
         if row.method == "refinement":
             plans[row.task, row.method] = {
@@ -148,6 +154,7 @@ def main():
             gain = float(rows[(rows.task == task) & (rows.method == method)].gain_mean.median())
             for flow, c in flows.items():
                 c = c[: args.paths]
+                assert torch.isfinite(c).all(), (seed, task, method, flow)
                 key = f"{task}|{method}+feasible|{flow}"
                 arrays[f"{key}|c"] = c.numpy()
                 arrays[f"{key}|bending"] = b.bending_energy(c).numpy()

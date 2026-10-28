@@ -15,4 +15,4 @@ cd "$FLOWS"
 echo "flows commit $(git rev-parse HEAD)"
 # SCRIPT=export_feasible.py OUT=plans-feasible for the feasibility-guided plan set.
 UV_OFFLINE=1 uv run --no-sync python "$DRONE/experiments/flow_plans/${SCRIPT:-export_plans.py}" \
-  --out "$DRONE/runs/flow/${OUT:-plans}" --paths "${PATHS:-512}"
+  --out "$DRONE/runs/flow/${OUT:-plans}" --paths "${PATHS:-512}" ${SEEDS:+--seeds $SEEDS}

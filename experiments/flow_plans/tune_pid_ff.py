@@ -41,7 +41,7 @@ def main():
     env = SuiteVecEnv([TASK], 256, robustness="real")
     constants = drone_constants("cf2x_L250", "so_rpy")
     results = []
-    for kp, kd, ki in itertools.product([3.0, 4.5, 6.0, 9.0], [2.0, 3.0, 4.5], [0.0, 2.0]):
+    for kp, kd, ki in itertools.product([16.0, 22.0, 30.0, 40.0, 55.0, 75.0], [6.0, 8.0, 11.0, 15.0], [4.0, 6.0, 9.0]):
         err, crash = score(FeedforwardPID(constants, kp=kp, ki=ki, kd=kd), env)
         results.append({"kp": kp, "kd": kd, "ki": ki, "mean_error_m": err, "crash_rate": crash})
         print(results[-1], flush=True)
