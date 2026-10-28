@@ -6,3 +6,9 @@ runs/
 .DS_Store
 
 MUJOCO_LOG.TXT
+
+# KiCad local / backups
+hardware/**/*.kicad_prl
+hardware/**/*-backups/
+hardware/**/*.zip
+hardware/**/fp-info-cache

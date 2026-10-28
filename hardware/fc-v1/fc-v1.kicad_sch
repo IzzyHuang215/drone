@@ -1,0 +1,19 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "e8b1c0a0-0000-4000-8000-000000000001")
+	(paper "A4")
+	(title_block
+		(title "fc-v1")
+		(comment 1 "Custom flight controller — MCU IMU power ESC RX")
+		(comment 2 "drone / IzzyHuang215")
+	)
+	(lib_symbols)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)
