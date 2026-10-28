@@ -1,20 +1,22 @@
 ﻿**goals**
-- build a light, not-too-bulky autonomous quadcopter (custom pcb as the base — only ordering the board once so design carefully)
-- deploy whatever we learn (pid, rl, etc.) on a real drone i design — not a stock crazyflie as the end product
-- start by learning how drones / flight controllers / IMUs / ESCs actually work before locking the hardware
+- build a light, not-too-bulky autonomous quadcopter on a custom flight-controller PCB (only ordering the board once — design carefully)
+- deploy on a real drone i design — not a stock crazyflie as the end product
+- learn how drones / FCs / IMUs / ESCs work, then get good at EE schematics + PCB layout before locking the board
 - camera on it for recording video; maybe lidar later but not required for v1
-- wireless control, ideally a handheld controller with an IMU so tilting it makes the drone go that way (sticks are hard for me)
+- wireless control, ideally a handheld tilt-IMU remote (sticks are hard for me)
+- leave room later for a companion computer if we run pedram-style learned control
 - later: obstacle avoidance + some ML stuff
-- keep cost low where possible; prefer smaller frame class so parts + crashes are cheaper
+- keep cost low where possible; prefer smaller (~3") frame class
 
 **constraints**
 - one pcb spin if we can help it
 - light / compact
 - budget conscious
-- real target platform = custom design (sim / crazyflie-like models are for learning / experiments only)
+- real target = custom airframe + custom FC (sim is for learning / experiments only)
 
 **near term**
-- fundamentals + resources
-- pick a first size / architecture that won't force a board respin
-- clarify with pedram how his crazyflow / ppo work maps onto the custom build (dynamics model, what transfers)
+- fundamentals: sensors, PID loops, ESC interface, power
+- schematic skills → then layout (that part should be fun)
+- pick size / power architecture that won't force a respin
+- 3d-print a frame early so mechanical fit is real
 - note findings here as i go
